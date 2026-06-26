@@ -1,0 +1,11 @@
+{
+  "year": "116",
+  "data_dir": "c:\\Users\\user\\Desktop\\projects\\BudgetDashboard\\data",
+  "output_dir": "c:\\Users\\user\\Desktop\\projects\\BudgetDashboard\\output",
+  "project_codes": [
+    "116TSD00-1",
+    "116TSD00-2"
+  ],
+  "dept_code_length": 4,
+  "dept_code_pattern": "([A-Za-z]{2}\\d{2})"
+}

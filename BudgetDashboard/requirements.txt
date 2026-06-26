@@ -1,0 +1,13 @@
+# BudgetDashboard Requirements
+# Core dependencies for the BudgetDashboard application
+
+# For Excel file handling
+pandas>=1.5.0
+openpyxl>=3.0.0
+xlsxwriter>=3.0.0
+
+# For SQLite database (usually built-in with Python, but we can use SQLAlchemy for ORM if needed)
+# SQLAlchemy>=2.0.0
+
+# For any future web dashboard or reporting (if needed)
+# flask>=2.3.0
