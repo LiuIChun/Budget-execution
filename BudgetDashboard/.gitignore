@@ -91,6 +91,7 @@ celerybeat-schedule
 # Environments
 .env
 .venv
+.venv*/
 env/
 venv/
 ENV/
@@ -115,13 +116,18 @@ dmypy.cfg
 # Darkly theme
 .darkly
 
-# Data and output directories (to avoid committing large binary files)
-data/
+# Runtime-generated directories
 output/
 database/
 
 # Logs
 *.log
+
+# Local settings and scratch/debug exports
+user_settings.json
+dept_mapping_debug.json
+temp_dept_mapping.json
+~$*
 
 # OS generated files
 .DS_Store

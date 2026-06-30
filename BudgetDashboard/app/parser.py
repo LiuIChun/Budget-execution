@@ -29,6 +29,22 @@ def _to_number(value):
     return float(match.group(0)) if match else 0.0
 
 
+def _to_text(value):
+    """Convert a cell value to stripped text."""
+    if pd.isna(value):
+        return ""
+    return str(value).strip()
+
+
+def _first_non_empty(values):
+    """Return the first non-empty value in a group."""
+    for value in values:
+        text = _to_text(value)
+        if text:
+            return text
+    return ""
+
+
 def _extract_purchase_id(value):
     """Extract normalized purchase id text."""
     if pd.isna(value):
@@ -88,6 +104,7 @@ def parse_approved_budget(df):
 
     columns = df.columns.tolist()
     dept_col = _find_column(columns, ["帳號", "系所代碼", "單位代碼", "部門代碼", "代碼"])
+    dept_name_col = _find_column(columns, ["系所中文名稱", "系所名稱", "系所", "單位名稱", "部門名稱"])
     budget_col = _find_column(columns, ["兩期合計", "核定經費", "核定預算", "預算", "核定金額", "經費"])
 
     if not dept_col:
@@ -96,10 +113,17 @@ def parse_approved_budget(df):
         raise ValueError(f"核定經費找不到金額欄位，現有欄位: {columns}")
 
     parsed = pd.DataFrame()
-    parsed["系所代碼"] = df[dept_col].astype(str).str.strip().str.upper().str[:4]
-    parsed["系所代碼"] = parsed["系所代碼"].fillna("")
+    parsed["系所代碼"] = df[dept_col].apply(_to_text).str.upper().str[:4]
+    if dept_name_col and dept_name_col != dept_col:
+        parsed["系所中文名稱"] = df[dept_name_col].apply(_to_text)
     parsed["核定經費"] = df[budget_col].apply(_to_number)
 
     parsed = parsed[parsed["系所代碼"] != ""].copy()
-    parsed = parsed.groupby("系所代碼", as_index=False)["核定經費"].sum()
+    agg_rules = {"核定經費": "sum"}
+    if "系所中文名稱" in parsed.columns:
+        agg_rules["系所中文名稱"] = _first_non_empty
+    parsed = parsed.groupby("系所代碼", as_index=False).agg(agg_rules)
+
+    preferred_columns = ["系所代碼", "系所中文名稱", "核定經費"]
+    parsed = parsed[[col for col in preferred_columns if col in parsed.columns]]
     return parsed

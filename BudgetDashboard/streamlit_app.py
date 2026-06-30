@@ -10,12 +10,12 @@ import plotly.graph_objects as go
 from pathlib import Path
 import sys
 
-# 將 app 目錄加入系統路徑，以便導入自訂模組
-sys.path.append(str(Path(__file__).parent / "app"))
+# 將 app 目錄優先加入系統路徑，以便導入自訂模組
+sys.path.insert(0, str(Path(__file__).parent / "app"))
 
 # 導入自訂模組
 from config import DATA_DIR, OUTPUT_DIR, DATABASE_DIR, DATABASE_PATH
-from loader import load_all_monthly_data, find_month_dir
+from loader import load_all_monthly_data, load_approved_budget, find_month_dir
 from parser import parse_expense_detail, parse_approved_budget
 from calculator import summarize_execution
 from exporter import export_execution_report
@@ -24,6 +24,36 @@ import config
 
 # 初始化資料庫
 init_history_db()
+
+
+def add_department_names(summary_df, budget_file):
+    """Add department Chinese names to old summary data when needed."""
+    if '系所中文名稱' in summary_df.columns or not budget_file:
+        return summary_df
+
+    try:
+        budget_df = parse_approved_budget(load_approved_budget(budget_file))
+    except Exception:
+        return summary_df
+
+    if '系所中文名稱' not in budget_df.columns:
+        return summary_df
+
+    name_df = budget_df[['系所代碼', '系所中文名稱']].drop_duplicates('系所代碼')
+    enriched_df = summary_df.merge(name_df, on='系所代碼', how='left')
+    enriched_df['系所中文名稱'] = enriched_df['系所中文名稱'].fillna('')
+    enriched_df.loc[
+        (enriched_df['系所代碼'] != '合計') & (enriched_df['系所中文名稱'] == ''),
+        '系所中文名稱',
+    ] = '未建立對照'
+    return enriched_df
+
+
+def get_available_data_months():
+    """Get month folders that have source data available."""
+    if not DATA_DIR.exists():
+        return []
+    return sorted(path.name for path in DATA_DIR.iterdir() if path.is_dir())
 
 # 設定頁面配置
 st.set_page_config(
@@ -42,16 +72,16 @@ with st.sidebar:
     st.header("⚙️ 設定")
     
     # 月份選擇
-    available_months = get_available_months()
+    available_months = sorted(set(get_available_months()) | set(get_available_data_months()))
     if available_months:
         selected_month = st.selectbox(
-            "選擇月份（有歷史資料的月份）",
+            "選擇月份",
             options=available_months,
             index=len(available_months)-1 if available_months else 0
         )
     else:
         selected_month = None
-        st.warning("目前尚無歷史資料")
+        st.warning("目前尚無可用月份資料")
     
     # 手動輸入月份
     manual_month = st.text_input(
@@ -106,6 +136,7 @@ with st.sidebar:
 # 主要內容區域
 if 'last_result' in st.session_state:
     result = st.session_state['last_result']
+    result['summary_df'] = add_department_names(result['summary_df'], result.get('budget_file'))
     
     # 顯示基本資訊
     col1, col2, col3 = st.columns(3)
@@ -121,6 +152,17 @@ if 'last_result' in st.session_state:
     
     # 格式化顯示摘要表格
     display_df = result['summary_df'].copy()
+    if '系所中文名稱' in display_df.columns:
+        preferred_cols = ['系所代碼', '系所中文名稱', '核定經費', '執行金額', '執行率(%)']
+        cols = [col for col in preferred_cols if col in display_df.columns]
+        cols += [col for col in display_df.columns if col not in cols and col not in ['department_code', 'department_name']]
+        display_df = display_df[cols]
+    elif 'department_name' in display_df.columns:
+        display_df['系所名稱'] = display_df['department_name']
+        # 重新排序欄位，讓系所名稱顯示在前面
+        cols = ['系所名稱'] + [col for col in display_df.columns if col not in ['系所名稱', 'department_code', 'department_name']]
+        display_df = display_df[cols]
+    
     # 格式化金額欄位為千分位
     if '核定經費' in display_df.columns:
         display_df['核定經費'] = display_df['核定經費'].apply(lambda x: f"{x:,.0f}")
@@ -266,14 +308,17 @@ if all_months:
             filtered_hist = hist_data[hist_data['dept_code'].isin(selected_depts)].copy()
             
             if not filtered_hist.empty:
+                rate_col = '執行率(%)' if '執行率(%)' in filtered_hist.columns else 'execution_rate'
+
                 # 建立趨勢線圖
                 fig_trend = px.line(
                     filtered_hist,
                     x='month',
-                    y='執行率(%)',
+                    y=rate_col,
                     color='dept_code',
                     title='各系所歷史執行率趨勢',
-                    markers=True
+                    markers=True,
+                    labels={rate_col: '執行率 (%)', 'dept_code': '系所代碼', 'month': '月份'}
                 )
                 fig_trend.update_layout(
                     xaxis_title='月份',
@@ -286,7 +331,7 @@ if all_months:
                 # 顯示歷史資料表格
                 with st.expander("📋 查看詳細歷史資料"):
                     display_hist = filtered_hist.copy()
-                    display_hist['執行率(%)'] = display_hist['執行率(%)'].apply(lambda x: f"{x:.2f}%")
+                    display_hist['執行率(%)'] = display_hist[rate_col].apply(lambda x: f"{x:.2f}%")
                     st.dataframe(display_hist.sort_values(['month', 'dept_code']), use_container_width=True)
             else:
                 st.info("選定的系別在歷史資料中沒有找到相關資料。")

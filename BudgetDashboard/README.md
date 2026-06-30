@@ -83,6 +83,30 @@ The command-line pipeline now implements the following flow:
    python main.py
    ```
 
+## Run the Streamlit Dashboard
+
+```bash
+streamlit run streamlit_app.py
+```
+
+## Deploy on Streamlit Community Cloud
+
+1. Push this `BudgetDashboard` folder as its own GitHub repository.
+2. Confirm these files are committed:
+   - `streamlit_app.py`
+   - `requirements.txt`
+   - `app/`
+   - `data/`
+3. Keep runtime files out of GitHub:
+   - `.venv313/`
+   - `output/`
+   - `database/`
+4. In Streamlit Community Cloud, create a new app with:
+   - Repository: your `BudgetDashboard` GitHub repository
+   - Branch: `main`
+   - Main file path: `streamlit_app.py`
+   - Python version: `3.13` if available, otherwise `3.12`
+
 ## Dependencies
 
 - pandas>=1.5.0
