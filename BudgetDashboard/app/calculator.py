@@ -4,6 +4,7 @@ Responsible for calculating budget execution rates and other metrics.
 """
 
 import pandas as pd
+from department_mapping import get_department_info
 
 def calculate_execution_rate(actual, budget):
     """
@@ -12,6 +13,12 @@ def calculate_execution_rate(actual, budget):
     if budget == 0:
         return 0
     return (actual / budget) * 100
+
+
+def get_department_chinese_name(dept_code):
+    """Return the mapped Chinese department name for a department code."""
+    dept_info = get_department_info(dept_code)
+    return dept_info["college"] if dept_info else ""
 
 
 def summarize_execution(expense_df, budget_df):
@@ -34,10 +41,14 @@ def summarize_execution(expense_df, budget_df):
         lambda row: calculate_execution_rate(row["執行金額"], row["核定經費"]), axis=1
     )
 
-    if "系所中文名稱" in summary.columns:
-        summary["系所中文名稱"] = (
-            summary["系所中文名稱"].fillna("").replace("", "未建立對照")
-        )
+    if "系所中文名稱" not in summary.columns:
+        summary["系所中文名稱"] = ""
+    summary["系所中文名稱"] = summary["系所中文名稱"].fillna("")
+    missing_name_mask = summary["系所中文名稱"] == ""
+    summary.loc[missing_name_mask, "系所中文名稱"] = summary.loc[
+        missing_name_mask, "系所代碼"
+    ].apply(get_department_chinese_name)
+    summary["系所中文名稱"] = summary["系所中文名稱"].replace("", "未建立對照")
 
     # Fill missing department_name and college for departments not in budget
     if 'department_name' in summary.columns:
