@@ -91,6 +91,12 @@ def parse_expense_detail(df):
     parsed["系所代碼"] = parsed["購案編號"].apply(_extract_dept_code4)
     parsed["執行金額"] = df[amount_col].apply(_to_number)
 
+    # Add department name mapping
+    from department_mapping import get_department_info
+    parsed["系所中文名稱"] = parsed["系所代碼"].apply(
+        lambda code: get_department_info(code)["department_name"] if get_department_info(code) else ""
+    )
+
     parsed = parsed[parsed["系所代碼"] != ""].copy()
     parsed = parsed[parsed["執行金額"] != 0].copy()
     return parsed
