@@ -19,7 +19,9 @@ def calculate_execution_rate(actual, budget):
 def get_department_chinese_name(dept_code):
     """Return the mapped Chinese department name for a department code."""
     dept_info = get_department_info(dept_code)
-    return dept_info["college"] if dept_info else ""
+    if not dept_info:
+        return ""
+    return dept_info.get("系所中文名稱") or dept_info.get("college") or ""
 
 
 def first_non_empty(values):

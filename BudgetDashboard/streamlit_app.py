@@ -14,13 +14,14 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent / "app"))
 
 # 導入自訂模組
+import config
 from config import DATA_DIR, OUTPUT_DIR, DATABASE_DIR, DATABASE_PATH
+
 from loader import load_all_monthly_data, load_approved_budget, find_month_dir
 from parser import parse_expense_detail, parse_approved_budget
 from calculator import summarize_execution
 from exporter import export_execution_report
 from history import init_history_db, save_monthly_execution, load_history, get_available_months
-import config
 
 # 初始化資料庫
 init_history_db()
