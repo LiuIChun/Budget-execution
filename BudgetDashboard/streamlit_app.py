@@ -22,6 +22,7 @@ from parser import parse_expense_detail, parse_approved_budget
 from calculator import summarize_execution
 from exporter import export_execution_report
 from history import init_history_db, save_monthly_execution, load_history, get_available_months
+from department_mapping import set_department_mapping_month
 
 # 初始化資料庫
 init_history_db()
@@ -100,6 +101,7 @@ with st.sidebar:
                 try:
                     # 尋找月份資料夾
                     month_dir = find_month_dir(month_to_process if month_to_process else None)
+                    mapping_file = set_department_mapping_month(month_dir)
                     
                     # 載入資料
                     data = load_all_monthly_data(month_dir)
@@ -125,7 +127,8 @@ with st.sidebar:
                         'parsed_expense_df': parsed_expense_df,
                         'output_path': output_path,
                         'expense_files': data["expense_files"],
-                        'budget_file': data["approved_budget_file"]
+                        'budget_file': data["approved_budget_file"],
+                        'mapping_file': mapping_file
                     }
                     
                     st.success(f"✅ 分析完成！報表已儲存至: {output_path.name}")

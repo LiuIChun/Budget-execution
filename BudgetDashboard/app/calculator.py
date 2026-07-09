@@ -98,6 +98,7 @@ def summarize_execution(expense_df, budget_df):
     summary["執行率(%)"] = summary.apply(
         lambda row: calculate_execution_rate(row["執行金額"], row["核定經費"]), axis=1
     )
+    summary = summary.drop(columns=["_department_group_key"])
 
     summary = summary.sort_values("系所代碼").reset_index(drop=True)
 
