@@ -57,6 +57,39 @@ def get_available_data_months():
         return []
     return sorted(path.name for path in DATA_DIR.iterdir() if path.is_dir())
 
+
+def dataframe_stretch(df):
+    """Render a dataframe using the current Streamlit width API with fallback."""
+    try:
+        st.dataframe(df, width="stretch")
+    except (AttributeError, TypeError):
+        st.dataframe(df, use_container_width=True)
+
+
+def plotly_chart_stretch(fig):
+    """Render a Plotly chart using the current Streamlit width API with fallback."""
+    try:
+        st.plotly_chart(fig, width="stretch")
+    except (AttributeError, TypeError):
+        st.plotly_chart(fig, use_container_width=True)
+
+
+def load_history_safe():
+    """Load history without allowing history issues to break the dashboard."""
+    try:
+        return load_history()
+    except Exception:
+        return pd.DataFrame()
+
+
+def get_available_months_safe():
+    """Get stored history months without allowing database issues to break startup."""
+    try:
+        return get_available_months()
+    except Exception:
+        return []
+
+
 # 設定頁面配置
 st.set_page_config(
     page_title="BudgetDashboard - 預算執行管理系統",
@@ -74,7 +107,7 @@ with st.sidebar:
     st.header("⚙️ 設定")
     
     # 月份選擇
-    available_months = sorted(set(get_available_months()) | set(get_available_data_months()))
+    available_months = sorted(set(get_available_months_safe()) | set(get_available_data_months()))
     if available_months:
         selected_month = st.selectbox(
             "選擇月份",
@@ -185,7 +218,7 @@ if 'last_result' in st.session_state:
     if '執行率(%)' in display_df.columns:
         display_df['執行率(%)'] = display_df['執行率(%)'].apply(lambda x: f"{x:.2f}%")
     
-    st.dataframe(display_df, use_container_width=True)
+    dataframe_stretch(display_df)
     
     # 顯示圖表
     col1, col2 = st.columns(2)
@@ -212,7 +245,7 @@ if 'last_result' in st.session_state:
             barmode='group',
             height=400
         )
-        st.plotly_chart(fig_bar, use_container_width=True)
+        plotly_chart_stretch(fig_bar)
     
     with col2:
         # 執行率圓餅圖（排除合計行）
@@ -225,7 +258,7 @@ if 'last_result' in st.session_state:
                 title='各系所執行金額比例'
             )
             fig_pie.update_traces(textposition='inside', textinfo='percent+label')
-            st.plotly_chart(fig_pie, use_container_width=True)
+            plotly_chart_stretch(fig_pie)
         else:
             st.info("沒有可顯示的執行率圓餅圖數據")
     
@@ -247,7 +280,7 @@ if 'last_result' in st.session_state:
             yaxis_title='執行率 (%)',
             height=400
         )
-        st.plotly_chart(fig_rate, use_container_width=True)
+        plotly_chart_stretch(fig_rate)
     else:
         st.info("沒有可顯示的執行率條形圖數據")
 
@@ -289,8 +322,10 @@ st.markdown("---")
 st.subheader("📜 歷史趨勢分析")
 
 # 取得所有可用月份
-all_months = get_available_months()
+all_months = get_available_months_safe()
 if all_months:
+    hist_data = load_history_safe()
+
     # 讓使用者選擇要查看趨勢的系所
     # 先取得最新月份的所有系所作為預設選項
     if 'last_result' in st.session_state:
@@ -299,24 +334,23 @@ if all_months:
     else:
         # 如果沒有最後結果，則嘗試從資料庫取得最新月份的系別
         latest_month = all_months[-1] if all_months else None
-        if latest_month:
-            latest_data = load_history()
-            if not latest_data.empty:
-                default_depts = latest_data[latest_data['month'] == latest_month]['dept_code'].unique().tolist()
-            else:
-                default_depts = []
+        if latest_month and not hist_data.empty:
+            default_depts = hist_data[hist_data['month'] == latest_month]['dept_code'].unique().tolist()
         else:
             default_depts = []
+
+    if not hist_data.empty and {'month', 'dept_code'}.issubset(hist_data.columns):
+        dept_options = sorted(hist_data['dept_code'].dropna().unique().tolist())
+    else:
+        dept_options = []
     
     selected_depts = st.multiselect(
         "選擇要查看趨勢的系所（可多選）",
-        options=sorted(list(set([dept for month in all_months for dept in load_history()[load_history()['month']==month]['dept_code'].unique()]))),
+        options=dept_options,
         default=default_depts[:5] if len(default_depts) > 5 else default_depts
     )
     
     if selected_depts:
-        # 載入選定系別的歷史資料
-        hist_data = load_history()
         if not hist_data.empty:
             # 過濾選定的系別和月份
             filtered_hist = hist_data[hist_data['dept_code'].isin(selected_depts)].copy()
@@ -340,13 +374,13 @@ if all_months:
                     hovermode='x unified',
                     height=500
                 )
-                st.plotly_chart(fig_trend, use_container_width=True)
+                plotly_chart_stretch(fig_trend)
                 
                 # 顯示歷史資料表格
                 with st.expander("📋 查看詳細歷史資料"):
                     display_hist = filtered_hist.copy()
                     display_hist['執行率(%)'] = display_hist[rate_col].apply(lambda x: f"{x:.2f}%")
-                    st.dataframe(display_hist.sort_values(['month', 'dept_code']), use_container_width=True)
+                    dataframe_stretch(display_hist.sort_values(['month', 'dept_code']))
             else:
                 st.info("選定的系別在歷史資料中沒有找到相關資料。")
         else:
