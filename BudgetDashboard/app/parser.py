@@ -45,6 +45,82 @@ def _first_non_empty(values):
     return ""
 
 
+def _normalize_budget_category(value):
+    """Normalize a budget category label to the dashboard category names."""
+    text = _to_text(value)
+    if text == "大陸地區旅費":
+        return "國外旅費"
+    for category in config.EXPENSE_CATEGORIES:
+        if text == category:
+            return category
+    return ""
+
+
+def _classify_expense_category(value):
+    """Classify a section/account label into one of the dashboard category names."""
+    text = _to_text(value)
+    if "國外旅費" in text or "大陸地區旅費" in text:
+        return "國外旅費"
+    if "無形資產" in text:
+        return "無形資產"
+    if "設備費" in text:
+        return "設備費"
+    if "業務費" in text:
+        return "業務費"
+    return ""
+
+
+def _find_budget_category_header_row(df):
+    """Find the row containing second-level budget category labels."""
+    for idx in df.index:
+        matches = [
+            _normalize_budget_category(value)
+            for value in df.loc[idx].tolist()
+        ]
+        if sum(1 for category in matches if category) >= 2:
+            return df.loc[idx]
+    return None
+
+
+def _find_budget_category_columns(df):
+    """Map raw budget columns to dashboard budget categories."""
+    category_columns = []
+    header_row = _find_budget_category_header_row(df)
+
+    if header_row is not None:
+        for col in df.columns:
+            category = _normalize_budget_category(header_row[col])
+            if category:
+                category_columns.append((col, category))
+
+    if not category_columns:
+        for col in df.columns:
+            category = _normalize_budget_category(col)
+            if category:
+                category_columns.append((col, category))
+
+    return category_columns
+
+
+def _expense_categories_from_sections(df, purpose_col, account_col):
+    """Carry section headings down to each expense row as the active category."""
+    categories = []
+    current_category = ""
+
+    for _, row in df.iterrows():
+        section_category = _classify_expense_category(row[purpose_col])
+        if section_category:
+            current_category = section_category
+
+        row_category = current_category
+        if not row_category and account_col:
+            row_category = _classify_expense_category(row[account_col])
+
+        categories.append(row_category)
+
+    return categories
+
+
 def _extract_purchase_id(value):
     """Extract normalized purchase id text."""
     if pd.isna(value):
@@ -79,6 +155,8 @@ def parse_expense_detail(df):
     columns = df.columns.tolist()
     purchase_col = _find_column(columns, [config.PURCHASE_NO, "購案", "案號", "編號"])
     amount_col = _find_column(columns, [config.AMOUNT, "支出", "執行", "實付", "付款", "請購"])
+    purpose_col = _find_column(columns, ["經費用途", "用途"])
+    account_col = _find_column(columns, ["會計科目", "科目"])
 
     if not purchase_col:
         raise ValueError(f"收支明細找不到購案編號欄位，現有欄位: {columns}")
@@ -90,6 +168,10 @@ def parse_expense_detail(df):
     parsed["購案編號"] = parsed["購案編號原始"].apply(_extract_purchase_id)
     parsed["系所代碼"] = parsed["購案編號"].apply(_extract_dept_code4)
     parsed["執行金額"] = df[amount_col].apply(_to_number)
+    if purpose_col:
+        parsed["經費項目"] = _expense_categories_from_sections(df, purpose_col, account_col)
+    else:
+        parsed["經費項目"] = ""
 
     # Add department name mapping
     from department_mapping import get_department_info
@@ -122,14 +204,30 @@ def parse_approved_budget(df):
     parsed["系所代碼"] = df[dept_col].apply(_to_text).str.upper().str[:4]
     if dept_name_col and dept_name_col != dept_col:
         parsed["系所中文名稱"] = df[dept_name_col].apply(_to_text)
+
+    category_columns = _find_budget_category_columns(df)
+    for category in config.EXPENSE_CATEGORIES:
+        parsed[f"{category}核定"] = 0.0
+    for col, category in category_columns:
+        parsed[f"{category}核定"] += df[col].apply(_to_number)
+
     parsed["核定經費"] = df[budget_col].apply(_to_number)
 
     parsed = parsed[parsed["系所代碼"] != ""].copy()
     agg_rules = {"核定經費": "sum"}
+    for category in config.EXPENSE_CATEGORIES:
+        agg_rules[f"{category}核定"] = "sum"
     if "系所中文名稱" in parsed.columns:
         agg_rules["系所中文名稱"] = _first_non_empty
     parsed = parsed.groupby("系所代碼", as_index=False).agg(agg_rules)
 
-    preferred_columns = ["系所代碼", "系所中文名稱", "核定經費"]
+    category_budget_columns = [
+        f"{category}核定" for category in config.EXPENSE_CATEGORIES
+    ]
+    if category_columns:
+        category_sum = parsed[category_budget_columns].sum(axis=1)
+        parsed["業務費核定"] += parsed["核定經費"] - category_sum
+
+    preferred_columns = ["系所代碼", "系所中文名稱", "核定經費"] + category_budget_columns
     parsed = parsed[[col for col in preferred_columns if col in parsed.columns]]
     return parsed

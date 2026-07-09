@@ -47,6 +47,9 @@ ACCOUNT_CODE = "帳號"         # Account code column name in budget data
 DEPT_NAME_CH = "系所中文名稱" # Department name column name in budget data
 BUDGET_AMOUNT = "兩期合計"    # Budget amount column name in budget data
 
+# Budget/expense categories shown in the execution summary.
+EXPENSE_CATEGORIES = ["業務費", "國外旅費", "無形資產", "設備費"]
+
 # Regular expression pattern to extract department code from purchase order number
 # Expected format: two uppercase letters followed by two digits (e.g., UH53, UE23)
 # Capturing group 1 extracts the department code

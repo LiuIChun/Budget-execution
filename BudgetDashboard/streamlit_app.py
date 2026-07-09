@@ -157,7 +157,16 @@ if 'last_result' in st.session_state:
     # 格式化顯示摘要表格
     display_df = result['summary_df'].copy()
     if '系所中文名稱' in display_df.columns:
-        preferred_cols = ['系所代碼', '系所中文名稱', '核定經費', '執行金額', '執行率(%)']
+        category_cols = []
+        for category in config.EXPENSE_CATEGORIES:
+            category_cols.extend([f'{category}核定', f'{category}執行金額'])
+        preferred_cols = [
+            '系所代碼',
+            '系所中文名稱',
+            '核定經費',
+            '執行金額',
+            '執行率(%)',
+        ] + category_cols
         cols = [col for col in preferred_cols if col in display_df.columns]
         cols += [col for col in display_df.columns if col not in cols and col not in ['department_code', 'department_name']]
         display_df = display_df[cols]
@@ -168,10 +177,11 @@ if 'last_result' in st.session_state:
         display_df = display_df[cols]
     
     # 格式化金額欄位為千分位
-    if '核定經費' in display_df.columns:
-        display_df['核定經費'] = display_df['核定經費'].apply(lambda x: f"{x:,.0f}")
-    if '執行金額' in display_df.columns:
-        display_df['執行金額'] = display_df['執行金額'].apply(lambda x: f"{x:,.0f}")
+    for col in display_df.columns:
+        if col == '執行率(%)':
+            continue
+        if pd.api.types.is_numeric_dtype(display_df[col]):
+            display_df[col] = display_df[col].apply(lambda x: f"{x:,.0f}")
     if '執行率(%)' in display_df.columns:
         display_df['執行率(%)'] = display_df['執行率(%)'].apply(lambda x: f"{x:.2f}%")
     
