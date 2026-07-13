@@ -87,6 +87,37 @@ def find_month_dir(month=None):
         raise FileNotFoundError("data/ 底下沒有任何月份資料夾")
     return month_dirs[-1]
 
+
+def find_approved_budget_file(month_dir):
+    """Find the budget workbook used to calculate a selected month.
+
+    Prefer a workbook stored with that month's expense files.  Older month
+    folders may contain expense snapshots only, so fall back to a shared
+    workbook in data/ and then to the newest month folder that has one.
+    """
+    month_dir = Path(month_dir)
+
+    search_dirs = [month_dir, config.DATA_DIR]
+    other_month_dirs = sorted(
+        (
+            path
+            for path in config.DATA_DIR.iterdir()
+            if path.is_dir() and path != month_dir
+        ),
+        reverse=True,
+    )
+    search_dirs.extend(other_month_dirs)
+
+    for directory in search_dirs:
+        approved_files = sorted(directory.glob(config.BUDGET_FILE_PATTERN))
+        if approved_files:
+            return approved_files[0]
+
+    raise ValueError(
+        "找不到核定經費檔案（可放在所選月份資料夾、data/，"
+        "或其他月份資料夾；檔名需包含『核定經費』）"
+    )
+
 def load_all_monthly_data(month_dir):
     """
     Load all data for a given month directory.
@@ -101,19 +132,17 @@ def load_all_monthly_data(month_dir):
             f"{month_dir} 至少需要 2 份收支明細檔，實際找到 {len(expense_files)} 份"
         )
 
-    approved_files = sorted(month_dir.glob("*核定經費*.xls*"))
-    if not approved_files:
-        raise ValueError(f"{month_dir} 找不到核定經費檔案（名稱需包含『核定經費』）")
+    approved_budget_file = find_approved_budget_file(month_dir)
 
     expense_dfs = [load_expense_detail(path) for path in expense_files]
     merged_expense_df = pd.concat(expense_dfs, ignore_index=True)
-    approved_budget_df = load_approved_budget(approved_files[0])
+    approved_budget_df = load_approved_budget(approved_budget_file)
 
     return {
         "month": month_dir.name,
         "month_dir": month_dir,
         "expense_files": expense_files,
-        "approved_budget_file": approved_files[0],
+        "approved_budget_file": approved_budget_file,
         "merged_expense_df": merged_expense_df,
         "approved_budget_df": approved_budget_df,
     }

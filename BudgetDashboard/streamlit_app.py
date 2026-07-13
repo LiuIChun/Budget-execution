@@ -6,7 +6,6 @@ Streamlit儀表板 for BudgetDashboard.
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 from pathlib import Path
 import sys
 
@@ -21,7 +20,7 @@ from loader import load_all_monthly_data, load_approved_budget, find_month_dir
 from parser import parse_expense_detail, parse_approved_budget
 from calculator import summarize_execution
 from exporter import export_execution_report
-from history import init_history_db, save_monthly_execution, load_history, get_available_months
+from history import init_history_db, save_monthly_execution
 from department_mapping import set_department_mapping_month
 
 # 初始化資料庫
@@ -52,10 +51,15 @@ def add_department_names(summary_df, budget_file):
 
 
 def get_available_data_months():
-    """Get month folders that have source data available."""
+    """Get month folders that contain a complete expense snapshot."""
     if not DATA_DIR.exists():
         return []
-    return sorted(path.name for path in DATA_DIR.iterdir() if path.is_dir())
+    return sorted(
+        path.name
+        for path in DATA_DIR.iterdir()
+        if path.is_dir()
+        and len(list(path.glob(config.EXPENSE_FILE_PATTERN))) >= 2
+    )
 
 
 def dataframe_stretch(df):
@@ -72,22 +76,6 @@ def plotly_chart_stretch(fig):
         st.plotly_chart(fig, width="stretch")
     except (AttributeError, TypeError):
         st.plotly_chart(fig, use_container_width=True)
-
-
-def load_history_safe():
-    """Load history without allowing history issues to break the dashboard."""
-    try:
-        return load_history()
-    except Exception:
-        return pd.DataFrame()
-
-
-def get_available_months_safe():
-    """Get stored history months without allowing database issues to break startup."""
-    try:
-        return get_available_months()
-    except Exception:
-        return []
 
 
 # 設定頁面配置
@@ -107,7 +95,7 @@ with st.sidebar:
     st.header("⚙️ 設定")
     
     # 月份選擇
-    available_months = sorted(set(get_available_months_safe()) | set(get_available_data_months()))
+    available_months = get_available_data_months()
     if available_months:
         selected_month = st.selectbox(
             "選擇月份",
@@ -118,16 +106,9 @@ with st.sidebar:
         selected_month = None
         st.warning("目前尚無可用月份資料")
     
-    # 手動輸入月份
-    manual_month = st.text_input(
-        "或手動輸入月份 (例如 11506)",
-        value=selected_month if selected_month else ""
-    )
-    
     # 執行按鈕
     if st.button("🚀 執行預算執行率分析", type="primary"):
-        # 使用手動輸入的月份（如果有），否則使用選擇的月份
-        month_to_process = manual_month.strip() if manual_month.strip() else selected_month
+        month_to_process = selected_month
         
         if month_to_process:
             with st.spinner("正在處理資料中..."):
@@ -220,65 +201,25 @@ if 'last_result' in st.session_state:
     
     dataframe_stretch(display_df)
     
-    # 顯示圖表
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # 預算 vs 實際支出長條圖
-        fig_bar = go.Figure()
-        fig_bar.add_trace(go.Bar(
-            x=result['summary_df']['系所代碼'],
-            y=result['summary_df']['核定經費'],
-            name='核定經費',
-            marker_color='lightblue'
-        ))
-        fig_bar.add_trace(go.Bar(
-            x=result['summary_df']['系所代碼'],
-            y=result['summary_df']['執行金額'],
-            name='執行金額',
-            marker_color='darkblue'
-        ))
-        fig_bar.update_layout(
-            title='各系所預算 vs 實際支出',
-            xaxis_title='系所代碼',
-            yaxis_title='金額',
-            barmode='group',
-            height=400
-        )
-        plotly_chart_stretch(fig_bar)
-    
-    with col2:
-        # 執行率圓餅圖（排除合計行）
-        plot_df = result['summary_df'][result['summary_df']['系所代碼'] != '合計'].copy()
-        if not plot_df.empty:
-            fig_pie = px.pie(
-                plot_df,
-                values='執行金額',
-                names='系所代碼',
-                title='各系所執行金額比例'
-            )
-            fig_pie.update_traces(textposition='inside', textinfo='percent+label')
-            plotly_chart_stretch(fig_pie)
-        else:
-            st.info("沒有可顯示的執行率圓餅圖數據")
-    
     # 執行率條形圖
     st.subheader("📊 各系所執行率比較")
     plot_df = result['summary_df'][result['summary_df']['系所代碼'] != '合計'].copy()
     if not plot_df.empty:
         fig_rate = px.bar(
             plot_df,
-            x='系所代碼',
+            x='系所中文名稱',
             y='執行率(%)',
             title='各系所預算執行率',
             color='執行率(%)',
             color_continuous_scale='RdYlGn',
-            range_color=[0, 100]
+            range_color=[0, 100],
+            hover_data={'系所代碼': True, '系所中文名稱': False},
         )
         fig_rate.update_layout(
-            xaxis_title='系所代碼',
+            xaxis_title='系所中文名稱',
             yaxis_title='執行率 (%)',
-            height=400
+            height=500,
+            xaxis_tickangle=-45,
         )
         plotly_chart_stretch(fig_rate)
     else:
@@ -304,8 +245,6 @@ else:
            - 將結果儲存至 SQLite 資料庫
         4. 分析完成後，儀表板將顯示：
            - 執行率摘要表
-           - 預算 vs 實際支出長條圖
-           - 執行金額比例圓餅圖
            - 執行率比較條形圖
         
         ### 資料夾結構
@@ -316,79 +255,6 @@ else:
         - `output/`: 自動產生的Excel報表將放置在此
         - `database/`: SQLite歷史資料庫
         """)
-
-# 顯示歷史趨勢分析
-st.markdown("---")
-st.subheader("📜 歷史趨勢分析")
-
-# 取得所有可用月份
-all_months = get_available_months_safe()
-if all_months:
-    hist_data = load_history_safe()
-
-    # 讓使用者選擇要查看趨勢的系所
-    # 先取得最新月份的所有系所作為預設選項
-    if 'last_result' in st.session_state:
-        default_depts = st.session_state['last_result']['summary_df']['系所代碼'].tolist()
-        default_depts = [dept for dept in default_depts if dept != '合計']
-    else:
-        # 如果沒有最後結果，則嘗試從資料庫取得最新月份的系別
-        latest_month = all_months[-1] if all_months else None
-        if latest_month and not hist_data.empty:
-            default_depts = hist_data[hist_data['month'] == latest_month]['dept_code'].unique().tolist()
-        else:
-            default_depts = []
-
-    if not hist_data.empty and {'month', 'dept_code'}.issubset(hist_data.columns):
-        dept_options = sorted(hist_data['dept_code'].dropna().unique().tolist())
-    else:
-        dept_options = []
-    
-    selected_depts = st.multiselect(
-        "選擇要查看趨勢的系所（可多選）",
-        options=dept_options,
-        default=default_depts[:5] if len(default_depts) > 5 else default_depts
-    )
-    
-    if selected_depts:
-        if not hist_data.empty:
-            # 過濾選定的系別和月份
-            filtered_hist = hist_data[hist_data['dept_code'].isin(selected_depts)].copy()
-            
-            if not filtered_hist.empty:
-                rate_col = '執行率(%)' if '執行率(%)' in filtered_hist.columns else 'execution_rate'
-
-                # 建立趨勢線圖
-                fig_trend = px.line(
-                    filtered_hist,
-                    x='month',
-                    y=rate_col,
-                    color='dept_code',
-                    title='各系所歷史執行率趨勢',
-                    markers=True,
-                    labels={rate_col: '執行率 (%)', 'dept_code': '系所代碼', 'month': '月份'}
-                )
-                fig_trend.update_layout(
-                    xaxis_title='月份',
-                    yaxis_title='執行率 (%)',
-                    hovermode='x unified',
-                    height=500
-                )
-                plotly_chart_stretch(fig_trend)
-                
-                # 顯示歷史資料表格
-                with st.expander("📋 查看詳細歷史資料"):
-                    display_hist = filtered_hist.copy()
-                    display_hist['執行率(%)'] = display_hist[rate_col].apply(lambda x: f"{x:.2f}%")
-                    dataframe_stretch(display_hist.sort_values(['month', 'dept_code']))
-            else:
-                st.info("選定的系別在歷史資料中沒有找到相關資料。")
-        else:
-            st.info("目前尚無歷史資料可供分析。")
-    else:
-        st.info("請選擇至少一個系別來查看歷史趨勢。")
-else:
-    st.info("目前尚無歷史資料，請先執行預算執行率分析以產生歷史資料。")
 
 # 頁尾資訊
 st.markdown("---")
