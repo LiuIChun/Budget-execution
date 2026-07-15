@@ -70,6 +70,23 @@ def dataframe_stretch(df):
         st.dataframe(df, use_container_width=True)
 
 
+def execution_rate_text_style(value):
+    """Highlight execution rates below 60 percent with red text."""
+    try:
+        rate = float(value)
+    except (TypeError, ValueError):
+        return ""
+    return "color: #d32f2f; font-weight: 600;" if rate < 60 else ""
+
+
+def style_execution_rate_table(df):
+    """Format and conditionally style the execution-rate column."""
+    styler = df.style.format({'執行率(%)': '{:.2f}%'})
+    if hasattr(styler, "map"):
+        return styler.map(execution_rate_text_style, subset=['執行率(%)'])
+    return styler.applymap(execution_rate_text_style, subset=['執行率(%)'])
+
+
 def plotly_chart_stretch(fig):
     """Render a Plotly chart using the current Streamlit width API with fallback."""
     try:
@@ -197,9 +214,9 @@ if 'last_result' in st.session_state:
         if pd.api.types.is_numeric_dtype(display_df[col]):
             display_df[col] = display_df[col].apply(lambda x: f"{x:,.0f}")
     if '執行率(%)' in display_df.columns:
-        display_df['執行率(%)'] = display_df['執行率(%)'].apply(lambda x: f"{x:.2f}%")
-    
-    dataframe_stretch(display_df)
+        dataframe_stretch(style_execution_rate_table(display_df))
+    else:
+        dataframe_stretch(display_df)
     
     # 執行率條形圖
     st.subheader("📊 各系所執行率比較")
