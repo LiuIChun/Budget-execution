@@ -1,17 +1,20 @@
 # BudgetDashboard Requirements
 # Core dependencies for the BudgetDashboard application
 
+# Numerical computing (Python 3.13 compatible)
+numpy>=2.0.0,<3.0.0
+
 # For Excel file handling
-pandas>=1.5.0
-openpyxl>=3.0.0
-xlsxwriter>=3.0.0
+pandas>=2.2.0,<4.0.0
+openpyxl>=3.1.0,<4.0.0
+xlsxwriter>=3.2.0,<4.0.0
 
 # For SQLite database (usually built-in with Python, but we can use SQLAlchemy for ORM if needed)
 # SQLAlchemy>=2.0.0
 
 # For web dashboard and plotting
-streamlit>=1.28.0
-plotly>=5.15.0
+streamlit>=1.58.0,<2.0.0
+plotly>=6.0.0,<7.0.0
 
 # For any future web dashboard or reporting (if needed)
 # flask>=2.3.0

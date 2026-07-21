@@ -11,6 +11,7 @@ from calculator import summarize_execution
 from exporter import export_execution_report
 from settings import load_settings, save_settings, is_first_run
 from history import save_monthly_execution
+from department_mapping import set_department_mapping_month
 import config
 
 def run_dashboard():
@@ -74,7 +75,9 @@ def run_dashboard():
         month_input = input("請輸入月份資料夾（例如 11506，直接 Enter 代表抓最新）: ").strip()
         month = month_input if month_input else None
 
-        data = load_all_monthly_data(find_month_dir(month))
+        month_dir = find_month_dir(month)
+        mapping_file = set_department_mapping_month(month_dir)
+        data = load_all_monthly_data(month_dir)
 
         merged_expense_df = data["merged_expense_df"]
         approved_budget_df = data["approved_budget_df"]
@@ -92,6 +95,7 @@ def run_dashboard():
         print(f"歷史資料已更新至資料庫: {config.DATABASE_PATH}")
 
         print(f"\n來源月份: {data['month']}")
+        print(f"系所對照表: {mapping_file.name}")
         print("收支明細檔案:")
         for path in data["expense_files"]:
             print(f"- {path.name}")
