@@ -8,6 +8,16 @@ import config
 from department_mapping import get_department_info
 
 
+# Department codes that must be reported as one department.  The display name
+# is the primary department name, without the parenthetical legacy-program tag.
+DEPARTMENT_ALIAS_GROUPS = {
+    "GB00": ("GB00/US19", "漁業科技與管理系"),
+    "US19": ("GB00/US19", "漁業科技與管理系"),
+    "UO04": ("UO04/YE00", "海洋休閒管理系"),
+    "YE00": ("UO04/YE00", "海洋休閒管理系"),
+}
+
+
 def category_budget_columns():
     """Return category budget column names in display order."""
     return [f"{category}核定" for category in config.EXPENSE_CATEGORIES]
@@ -60,8 +70,25 @@ def join_department_codes(values):
     return "/".join(codes)
 
 
+def get_department_alias(dept_code):
+    """Return the reporting group and primary name for a department alias."""
+    return DEPARTMENT_ALIAS_GROUPS.get(str(dept_code).strip().upper())
+
+
+def primary_department_chinese_name(row):
+    """Use the configured primary name for a merged department group."""
+    alias = get_department_alias(row["系所代碼"])
+    if alias:
+        return alias[1]
+    return row["系所中文名稱"]
+
+
 def make_department_group_key(row):
     """Group known aliases by Chinese name and unknown departments by code."""
+    alias = get_department_alias(row["系所代碼"])
+    if alias:
+        return f"alias:{alias[0]}"
+
     dept_name = str(row["系所中文名稱"]).strip()
     if dept_name and dept_name != "未建立對照":
         return f"name:{dept_name}"
@@ -137,6 +164,9 @@ def summarize_execution(expense_df, budget_df):
         missing_name_mask, "系所代碼"
     ].apply(get_department_chinese_name)
     summary["系所中文名稱"] = summary["系所中文名稱"].replace("", "未建立對照")
+    summary["系所中文名稱"] = summary.apply(
+        primary_department_chinese_name, axis=1
+    )
 
     if 'department_name' in summary.columns:
         summary['department_name'] = summary['department_name'].fillna('未知系統')

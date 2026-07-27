@@ -97,14 +97,14 @@ def plotly_chart_stretch(fig):
 
 # 設定頁面配置
 st.set_page_config(
-    page_title="BudgetDashboard - 預算執行管理系統",
+    page_title="國立高雄科技大學 躍升計畫預算執行管理系統",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # 應用程式標題
-st.title("📊 BudgetDashboard - 預算執行管理系統")
+st.title("📊 國立高雄科技大學  躍升計畫預算執行管理系統")
 st.markdown("---")
 
 # 側邊欄設定
@@ -182,17 +182,11 @@ if 'last_result' in st.session_state:
     result = st.session_state['last_result']
     result['summary_df'] = add_department_names(result['summary_df'], result.get('budget_file'))
     
-    # 顯示基本資訊
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("來源月份", result['month'])
-    with col2:
-        st.metric("收支明細檔案數", len(result['expense_files']))
-    with col3:
-        st.metric("核定經費檔案", result['budget_file'].name)
+    # 顯示資料來源月份
+    st.metric("資料來源月份", result['month'])
     
     # 顯示執行率摘要表
-    st.subheader("📈 各系所預算執行率摘要")
+    st.header("📈 各系預算執行率摘要")
     
     # 格式化顯示摘要表格
     display_df = result['summary_df'].copy()
