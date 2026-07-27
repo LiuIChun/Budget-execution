@@ -1,5 +1,6 @@
 # BudgetDashboard Requirements
 # Core dependencies for the BudgetDashboard application
+# Deployment refresh: 2026-07-27
 
 # Numerical computing (Python 3.13 compatible)
 numpy>=2.0.0,<3.0.0
