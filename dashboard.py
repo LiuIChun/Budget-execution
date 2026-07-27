@@ -3,6 +3,14 @@ BudgetDashboard 首頁 - Streamlit 介面
 提供互動式網頁介面來查看預算執行率和歷史趨勢
 """
 
+# Compatibility entrypoint for older Streamlit Cloud deployments.  Keep both
+# possible entrypoint files rendering the same maintained application.
+from streamlit_app import *  # noqa: F401,F403,E402
+
+import streamlit as st
+
+st.stop()
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
