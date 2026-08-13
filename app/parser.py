@@ -173,6 +173,11 @@ def parse_expense_detail(df):
     else:
         parsed["經費項目"] = ""
 
+    # Exclude codes that are outside the departmental budget statistics.
+    parsed = parsed[
+        ~parsed["系所代碼"].isin(config.EXCLUDED_EXPENSE_DEPT_CODES)
+    ].copy()
+
     # Add department name mapping
     from department_mapping import get_department_info
     parsed["系所中文名稱"] = parsed["系所代碼"].apply(

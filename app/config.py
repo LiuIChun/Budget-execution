@@ -32,6 +32,9 @@ PROJECT_FILES = [
 # ===== 系所代碼 =====
 DEPT_CODE_LENGTH = 4
 
+# Expense department codes that must not be included in dashboard statistics.
+EXCLUDED_EXPENSE_DEPT_CODES = {"SD02"}
+
 # ===== Dashboard =====
 PAGE_TITLE = "BudgetDashboard"
 PAGE_ICON = "📊"

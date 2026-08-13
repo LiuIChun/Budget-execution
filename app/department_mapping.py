@@ -13,19 +13,6 @@ MAPPING_FILE_PATTERN = "*系所*代碼*中文名稱*對照表*.xls*"
 DEFAULT_MAPPING_FILE_PATH = DEFAULT_MAPPING_DIR / MAPPING_FILE_NAME
 _MAPPING_CACHE = {}
 
-# Legacy codes found in the required ROC-year-114 supplemental expense file.
-# These are not rows in the current department mapping workbook, but the
-# source workbook identifies SD02 as the Institutional Big Data Center.
-LEGACY_DEPARTMENT_MAPPING = {
-    "SD02": {
-        "department_name": "校務大數據分析中心",
-        "college": "校務大數據分析中心",
-        "系所中文名稱": "校務大數據分析中心",
-        "學院": "",
-        "code": "SD02",
-    }
-}
-
 
 def _mapping_candidates(directory):
     """Return possible mapping files under a directory in priority order."""
@@ -123,5 +110,4 @@ def get_department_info(dept_code):
     """Get department information by department code."""
     if not dept_code:
         return None
-    code = str(dept_code).upper()
-    return DEPARTMENT_MAPPING.get(code) or LEGACY_DEPARTMENT_MAPPING.get(code)
+    return DEPARTMENT_MAPPING.get(str(dept_code).upper())
