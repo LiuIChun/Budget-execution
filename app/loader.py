@@ -5,7 +5,7 @@ Responsible for loading raw data from Excel files.
 
 import pandas as pd
 from pathlib import Path
-import config
+from . import config
 
 
 def _read_excel(file_path):

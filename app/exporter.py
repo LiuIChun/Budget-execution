@@ -4,7 +4,7 @@ Responsible for exporting data to Excel or other formats.
 """
 
 import pandas as pd
-import config
+from . import config
 
 def export_to_excel(df, file_name):
     """

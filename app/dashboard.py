@@ -5,14 +5,14 @@ Main dashboard logic that ties together loader, parser, calculator, and exporter
 
 from datetime import datetime
 
-from loader import find_month_dir, load_all_monthly_data
-from parser import parse_expense_detail, parse_approved_budget
-from calculator import summarize_execution
-from exporter import export_execution_report
-from settings import load_settings, save_settings, is_first_run
-from history import save_monthly_execution
-from department_mapping import set_department_mapping_month
-import config
+from .loader import find_month_dir, load_all_monthly_data
+from .parser import parse_expense_detail, parse_approved_budget
+from .calculator import summarize_execution
+from .exporter import export_execution_report
+from .settings import load_settings, save_settings, is_first_run
+from .history import save_monthly_execution
+from .department_mapping import set_department_mapping_month
+from . import config
 
 def run_dashboard():
     """

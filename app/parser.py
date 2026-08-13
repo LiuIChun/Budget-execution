@@ -6,7 +6,8 @@ Responsible for parsing loaded data into a structured format.
 import re
 
 import pandas as pd
-import config
+from . import config
+from .department_mapping import get_department_info
 
 
 def _find_column(columns, candidates):
@@ -179,7 +180,6 @@ def parse_expense_detail(df):
     ].copy()
 
     # Add department name mapping
-    from department_mapping import get_department_info
     parsed["系所中文名稱"] = parsed["系所代碼"].apply(
         lambda code: get_department_info(code).get("系所中文名稱", "") if get_department_info(code) else ""
     )

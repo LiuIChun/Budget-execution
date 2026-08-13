@@ -4,8 +4,8 @@ Responsible for calculating budget execution rates and other metrics.
 """
 
 import pandas as pd
-import config
-from department_mapping import get_department_info
+from . import config
+from .department_mapping import get_department_info
 
 
 # Department codes that must be reported as one department.  The display name

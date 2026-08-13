@@ -10,7 +10,7 @@ import sys
 
 # Add the app directory to the path so we can import config
 sys.path.append(str(Path(__file__).parent))
-import config
+from . import config
 
 def init_history_db():
     """Initialize the history database table if it doesn't exist."""

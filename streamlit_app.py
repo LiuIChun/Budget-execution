@@ -7,26 +7,22 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from pathlib import Path
-import sys
-
-# 將 app 目錄優先加入系統路徑，以便導入自訂模組
-sys.path.insert(0, str(Path(__file__).parent / "app"))
 
 # 導入自訂模組
-import config
-from config import DATA_DIR, OUTPUT_DIR, DATABASE_DIR, DATABASE_PATH
+from app import config
+from app.config import DATA_DIR, OUTPUT_DIR, DATABASE_DIR, DATABASE_PATH
 
-from loader import (
+from app.loader import (
     find_month_dir,
     is_complete_month_dir,
     load_all_monthly_data,
     load_approved_budget,
 )
-from parser import parse_expense_detail, parse_approved_budget
-from calculator import summarize_execution
-from exporter import export_execution_report
-from history import init_history_db, save_monthly_execution
-from department_mapping import set_department_mapping_month
+from app.parser import parse_expense_detail, parse_approved_budget
+from app.calculator import summarize_execution
+from app.exporter import export_execution_report
+from app.history import init_history_db, save_monthly_execution
+from app.department_mapping import set_department_mapping_month
 
 # 初始化資料庫
 init_history_db()
