@@ -118,6 +118,38 @@ def find_approved_budget_file(month_dir):
         "或其他月份資料夾；檔名需包含『核定經費』）"
     )
 
+
+def find_monthly_expense_files(month_dir):
+    """Return the required supplemental file and two regular monthly files."""
+    month_dir = Path(month_dir)
+    expense_files = sorted(month_dir.glob(config.EXPENSE_FILE_PATTERN))
+    supplemental_file = month_dir / config.REQUIRED_SUPPLEMENTAL_EXPENSE_FILE
+
+    if not supplemental_file.exists():
+        raise ValueError(
+            f"{month_dir} 缺少必備的 114 年請購補充檔："
+            f"{config.REQUIRED_SUPPLEMENTAL_EXPENSE_FILE}"
+        )
+
+    regular_files = [path for path in expense_files if path != supplemental_file]
+    if len(regular_files) < config.REGULAR_EXPENSE_FILE_COUNT:
+        raise ValueError(
+            f"{month_dir} 除補充檔外，至少需要 "
+            f"{config.REGULAR_EXPENSE_FILE_COUNT} 份月份收支明細檔，"
+            f"實際找到 {len(regular_files)} 份"
+        )
+
+    return [supplemental_file] + regular_files
+
+
+def is_complete_month_dir(month_dir):
+    """Return whether a month has every expense source required by the app."""
+    try:
+        find_monthly_expense_files(month_dir)
+    except ValueError:
+        return False
+    return True
+
 def load_all_monthly_data(month_dir):
     """
     Load all data for a given month directory.
@@ -126,11 +158,7 @@ def load_all_monthly_data(month_dir):
     if not month_dir.exists():
         raise FileNotFoundError(f"找不到月份資料夾: {month_dir}")
 
-    expense_files = sorted(month_dir.glob("*收支明細*.xls*"))
-    if len(expense_files) < 2:
-        raise ValueError(
-            f"{month_dir} 至少需要 2 份收支明細檔，實際找到 {len(expense_files)} 份"
-        )
+    expense_files = find_monthly_expense_files(month_dir)
 
     approved_budget_file = find_approved_budget_file(month_dir)
 

@@ -59,6 +59,12 @@ DEPT_CODE_PATTERN = r'([A-Z]{2}\d{2})'
 EXPENSE_FILE_PATTERN = "*收支明細*.xls*"  # Matches both .xls and .xlsx files
 BUDGET_FILE_PATTERN = "*核定經費*.xls*"   # Matches both .xls and .xlsx files
 
+# Required supplemental snapshot for purchase orders created in ROC year 114.
+# This workbook must be present in every published month directory in addition
+# to the two regular monthly expense-detail workbooks.
+REQUIRED_SUPPLEMENTAL_EXPENSE_FILE = "1150108_114TSD00-15收支明細.xlsx"
+REGULAR_EXPENSE_FILE_COUNT = 2
+
 # Default year/month for data processing (can be overridden)
 DEFAULT_YEAR = "115"  # Republic of China year
 DEFAULT_PERIODS = ["08", "15"]  # Example periods

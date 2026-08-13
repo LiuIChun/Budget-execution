@@ -16,7 +16,12 @@ sys.path.insert(0, str(Path(__file__).parent / "app"))
 import config
 from config import DATA_DIR, OUTPUT_DIR, DATABASE_DIR, DATABASE_PATH
 
-from loader import load_all_monthly_data, load_approved_budget, find_month_dir
+from loader import (
+    find_month_dir,
+    is_complete_month_dir,
+    load_all_monthly_data,
+    load_approved_budget,
+)
 from parser import parse_expense_detail, parse_approved_budget
 from calculator import summarize_execution
 from exporter import export_execution_report
@@ -58,7 +63,7 @@ def get_available_data_months():
         path.name
         for path in DATA_DIR.iterdir()
         if path.is_dir()
-        and len(list(path.glob(config.EXPENSE_FILE_PATTERN))) >= 2
+        and is_complete_month_dir(path)
     )
 
 
@@ -268,9 +273,9 @@ else:
         1. 在側邊欄中選擇有歷史資料的月份，或手動輸入月份（例如 11506）
         2. 點擊『執行預算執行率分析』按鈕
         3. 系統將自動：
-           - 讀取該月份的兩份收支明細Excel和一份核定經費Excel
+           - 讀取兩份月份收支明細、114 年請購補充明細與核定經費 Excel
            - 解析購案編號中的4碼系所代碼
-           - 合併兩份收支資料
+           - 合併三份收支資料
            - 對照核定經費
            - 計算各系所執行率
            - 產生Excel報表並儲存至 output/ 資料夾
@@ -282,7 +287,8 @@ else:
         ### 資料夾結構
         - `data/`: 放置每月的資料夾（例如 11506, 11507）
         - 每月資料夾內應包含：
-          - 兩份收支明細Excel（格式: *收支明細.xlsx）
+          - 兩份當月收支明細 Excel（格式: *收支明細.xlsx）
+          - `1150108_114TSD00-15收支明細.xlsx`（114 年請購必備補充檔）
           - 一份核定經費Excel（格式: 各系核定經費.xlsx）
         - `output/`: 自動產生的Excel報表將放置在此
         - `database/`: SQLite歷史資料庫
