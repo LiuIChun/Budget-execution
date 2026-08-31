@@ -168,6 +168,9 @@ def parse_expense_detail(df):
     parsed["購案編號原始"] = df[purchase_col]
     parsed["購案編號"] = parsed["購案編號原始"].apply(_extract_purchase_id)
     parsed["系所代碼"] = parsed["購案編號"].apply(_extract_dept_code4)
+    parsed["系所代碼"] = parsed["系所代碼"].replace(
+        config.EXPENSE_DEPT_CODE_ALIASES
+    )
     parsed["執行金額"] = df[amount_col].apply(_to_number)
     if purpose_col:
         parsed["經費項目"] = _expense_categories_from_sections(df, purpose_col, account_col)

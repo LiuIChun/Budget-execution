@@ -35,6 +35,13 @@ DEPT_CODE_LENGTH = 4
 # Expense department codes that must not be included in dashboard statistics.
 EXCLUDED_EXPENSE_DEPT_CODES = {"SD02"}
 
+# Purchase-order department codes that must be reported under another code.
+# US01 is confirmed to belong to the Fisheries Production and Management
+# department and is therefore normalized to its current reporting code US19.
+EXPENSE_DEPT_CODE_ALIASES = {
+    "US01": "US19",
+}
+
 # ===== Dashboard =====
 PAGE_TITLE = "BudgetDashboard"
 PAGE_ICON = "📊"
