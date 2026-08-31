@@ -13,6 +13,7 @@ from .department_mapping import get_department_info
 DEPARTMENT_ALIAS_GROUPS = {
     "GB00": ("GB00/US19", "漁業科技與管理系"),
     "US19": ("GB00/US19", "漁業科技與管理系"),
+    "US01": ("GB00/US19", "漁業科技與管理系"),
     "UO04": ("UO04/YE00", "海洋休閒管理系"),
     "YE00": ("UO04/YE00", "海洋休閒管理系"),
 }

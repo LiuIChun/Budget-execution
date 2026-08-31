@@ -13,6 +13,11 @@ MAPPING_FILE_PATTERN = "*系所*代碼*中文名稱*對照表*.xls*"
 DEFAULT_MAPPING_FILE_PATH = DEFAULT_MAPPING_DIR / MAPPING_FILE_NAME
 _MAPPING_CACHE = {}
 
+# Legacy or purchasing-only codes that use another department's mapping.
+DEPARTMENT_CODE_ALIASES = {
+    "US01": "US19",
+}
+
 
 def _mapping_candidates(directory):
     """Return possible mapping files under a directory in priority order."""
@@ -110,4 +115,6 @@ def get_department_info(dept_code):
     """Get department information by department code."""
     if not dept_code:
         return None
-    return DEPARTMENT_MAPPING.get(str(dept_code).upper())
+    code = str(dept_code).strip().upper()
+    code = DEPARTMENT_CODE_ALIASES.get(code, code)
+    return DEPARTMENT_MAPPING.get(code)
