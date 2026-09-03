@@ -28,7 +28,7 @@ from app.department_mapping import set_department_mapping_month
 init_history_db()
 
 # Invalidate results retained by a browser session when reporting rules change.
-RESULT_SCHEMA_VERSION = "2026-08-31-us01-fisheries-merge"
+RESULT_SCHEMA_VERSION = "2026-09-03-11508-expense-refresh"
 if st.session_state.get("result_schema_version") != RESULT_SCHEMA_VERSION:
     st.session_state.pop("last_result", None)
     st.session_state["result_schema_version"] = RESULT_SCHEMA_VERSION

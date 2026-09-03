@@ -109,7 +109,11 @@ def find_approved_budget_file(month_dir):
     search_dirs.extend(other_month_dirs)
 
     for directory in search_dirs:
-        approved_files = sorted(directory.glob(config.BUDGET_FILE_PATTERN))
+        approved_files = sorted(
+            path
+            for path in directory.glob(config.BUDGET_FILE_PATTERN)
+            if not path.name.startswith("~$")
+        )
         if approved_files:
             return approved_files[0]
 
