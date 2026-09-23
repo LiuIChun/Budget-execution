@@ -16,6 +16,7 @@ _MAPPING_CACHE = {}
 # Legacy or purchasing-only codes that use another department's mapping.
 DEPARTMENT_CODE_ALIASES = {
     "US01": "US19",
+    "PE00": "UE15",
 }
 
 

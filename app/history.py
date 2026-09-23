@@ -35,7 +35,7 @@ def save_monthly_execution(month, summary_df):
     
     Args:
         month (str): Month identifier (e.g., '11506')
-        summary_df (pd.DataFrame): DataFrame with columns ['系所代碼', '核定經費', '執行金額', '執行率(%)']
+        summary_df (pd.DataFrame): DataFrame with columns ['系所代碼', '核定經費', '動支金額', '動支率(%)']
     """
     init_history_db()
     conn = sqlite3.connect(config.DATABASE_PATH)
@@ -47,8 +47,8 @@ def save_monthly_execution(month, summary_df):
         if dept_code == '合計':
             continue
         budget = float(row['核定經費'])
-        actual = float(row['執行金額'])
-        execution_rate = float(row['執行率(%)'])
+        actual = float(row['動支金額'])
+        execution_rate = float(row['動支率(%)'])
         
         cursor.execute('''
             INSERT OR REPLACE INTO monthly_execution 

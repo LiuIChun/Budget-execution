@@ -1,6 +1,6 @@
 """
 Streamlit儀表板 for BudgetDashboard.
-提供互動式網頁介面來查看預算執行率和歷史趨勢。
+提供互動式網頁介面來查看預算動支率、實支率和歷史趨勢。
 """
 
 import streamlit as st
@@ -28,7 +28,7 @@ from app.department_mapping import set_department_mapping_month
 init_history_db()
 
 # Invalidate results retained by a browser session when reporting rules change.
-RESULT_SCHEMA_VERSION = "2026-09-03-11508-expense-refresh"
+RESULT_SCHEMA_VERSION = "2026-09-23-actual-spending-columns"
 if st.session_state.get("result_schema_version") != RESULT_SCHEMA_VERSION:
     st.session_state.pop("last_result", None)
     st.session_state["result_schema_version"] = RESULT_SCHEMA_VERSION
@@ -69,16 +69,13 @@ def get_available_data_months():
     )
 
 
-def dataframe_stretch(df):
-    """Render a dataframe using the current Streamlit width API with fallback."""
-    try:
-        st.dataframe(df, width="stretch")
-    except (AttributeError, TypeError):
-        st.dataframe(df, use_container_width=True)
+def dataframe_stretch(df, **kwargs):
+    """Render a dataframe stretched to its container."""
+    st.dataframe(df, width="stretch", hide_index=True, **kwargs)
 
 
-def execution_rate_text_style(value):
-    """Highlight execution rates below 60 percent with red text."""
+def rate_text_style(value):
+    """Highlight rates below 60 percent with red text."""
     try:
         rate = float(value)
     except (TypeError, ValueError):
@@ -86,20 +83,17 @@ def execution_rate_text_style(value):
     return "color: #d32f2f; font-weight: 600;" if rate < 60 else ""
 
 
-def style_execution_rate_table(df):
-    """Format and conditionally style the execution-rate column."""
-    styler = df.style.format({'執行率(%)': '{:.2f}%'})
+def style_rate_table(df, rate_columns):
+    """Conditionally style the rate columns."""
+    styler = df.style
     if hasattr(styler, "map"):
-        return styler.map(execution_rate_text_style, subset=['執行率(%)'])
-    return styler.applymap(execution_rate_text_style, subset=['執行率(%)'])
+        return styler.map(rate_text_style, subset=rate_columns)
+    return styler.applymap(rate_text_style, subset=rate_columns)
 
 
 def plotly_chart_stretch(fig):
-    """Render a Plotly chart using the current Streamlit width API with fallback."""
-    try:
-        st.plotly_chart(fig, width="stretch")
-    except (AttributeError, TypeError):
-        st.plotly_chart(fig, use_container_width=True)
+    """Render a Plotly chart stretched to its container."""
+    st.plotly_chart(fig, width="stretch")
 
 
 # 設定頁面配置
@@ -131,7 +125,7 @@ with st.sidebar:
         st.warning("目前尚無可用月份資料")
     
     # 執行按鈕
-    if st.button("🚀 執行預算執行率分析", type="primary"):
+    if st.button("🚀 執行預算動支分析", type="primary"):
         month_to_process = selected_month
         
         if month_to_process:
@@ -148,7 +142,7 @@ with st.sidebar:
                     parsed_expense_df = parse_expense_detail(data["merged_expense_df"])
                     parsed_budget_df = parse_approved_budget(data["approved_budget_df"])
                     
-                    # 計算執行率
+                    # 計算動支率與實支率
                     summary_df = summarize_execution(parsed_expense_df, parsed_budget_df)
                     
                     # 輸出Excel報表
@@ -192,21 +186,23 @@ if 'last_result' in st.session_state:
     # 顯示資料來源月份
     st.metric("資料來源月份", result['month'])
     
-    # 顯示執行率摘要表
-    st.header("📈 各系預算執行率摘要")
+    # 顯示動支與實支摘要表
+    st.header("📈 各系預算動支與實支摘要")
     
     # 格式化顯示摘要表格
     display_df = result['summary_df'].copy()
     if '系所中文名稱' in display_df.columns:
         category_cols = []
         for category in config.EXPENSE_CATEGORIES:
-            category_cols.extend([f'{category}核定', f'{category}執行金額'])
+            category_cols.extend([f'{category}核定', f'{category}動支金額'])
         preferred_cols = [
             '系所代碼',
             '系所中文名稱',
             '核定經費',
-            '執行金額',
-            '執行率(%)',
+            '動支金額',
+            '動支率(%)',
+            '實支金額',
+            '實支率(%)',
         ] + category_cols
         cols = [col for col in preferred_cols if col in display_df.columns]
         cols += [col for col in display_df.columns if col not in cols and col not in ['department_code', 'department_name']]
@@ -218,36 +214,45 @@ if 'last_result' in st.session_state:
         display_df = display_df[cols]
     
     # 格式化金額欄位為千分位
+    rate_columns = [
+        col for col in ['動支率(%)', '實支率(%)'] if col in display_df.columns
+    ]
     for col in display_df.columns:
-        if col == '執行率(%)':
+        if col in rate_columns:
             continue
         if pd.api.types.is_numeric_dtype(display_df[col]):
             display_df[col] = display_df[col].apply(lambda x: f"{x:,.0f}")
-    if '執行率(%)' in display_df.columns:
-        dataframe_stretch(style_execution_rate_table(display_df))
+    if rate_columns:
+        dataframe_stretch(
+            style_rate_table(display_df, rate_columns),
+            column_config={
+                col: st.column_config.NumberColumn(col, format="%.2f%%")
+                for col in rate_columns
+            },
+        )
     else:
         dataframe_stretch(display_df)
     
-    # 執行率條形圖
-    st.subheader("📊 各系所執行率比較")
+    # 動支率條形圖
+    st.subheader("📊 各系所動支率比較")
     plot_df = result['summary_df'][result['summary_df']['系所代碼'] != '合計'].copy()
     if not plot_df.empty:
-        # 依執行率由高至低排序
-        plot_df = plot_df.sort_values(by='執行率(%)', ascending=False)
+        # 依動支率由高至低排序
+        plot_df = plot_df.sort_values(by='動支率(%)', ascending=False)
 
         fig_rate = px.bar(
             plot_df,
-            x='執行率(%)',  # 執行率放X軸
+            x='動支率(%)',
             y='系所中文名稱',  # 系所中文名稱放Y軸
-            title='各系所預算執行率',
-            color='執行率(%)',
+            title='各系所預算動支率',
+            color='動支率(%)',
             color_continuous_scale='RdYlGn',
             range_color=[0, 100],
             orientation='h',  # 橫式顯示
             hover_data={'系所代碼': True, '系所中文名稱': False}
         )
         fig_rate.update_layout(
-            xaxis_title='執行率 (%)',  # X軸標題
+            xaxis_title='動支率 (%)',
             yaxis_title='系所中文名稱',  # Y軸標題
             height=max(600, 20 * len(plot_df)),  # 根據系所數量動態調整高度，最小600px
             yaxis={
@@ -262,29 +267,29 @@ if 'last_result' in st.session_state:
         )
         plotly_chart_stretch(fig_rate)
     else:
-        st.info("沒有可顯示的執行率條形圖數據")
+        st.info("沒有可顯示的動支率條形圖數據")
 
 else:
     # 沒有執行結果時顯示的內容
-    st.info("👈 請在左側選擇月份並點擊『執行預算執行率分析』按鈕來開始分析。")
+    st.info("👈 請在左側選擇月份並點擊『執行預算動支分析』按鈕來開始分析。")
     
     # 顯示使用說明
     with st.expander("📖 使用說明"):
         st.markdown("""
         ### 使用步驟
         1. 在側邊欄中選擇有歷史資料的月份，或手動輸入月份（例如 11506）
-        2. 點擊『執行預算執行率分析』按鈕
+        2. 點擊『執行預算動支分析』按鈕
         3. 系統將自動：
            - 讀取兩份月份收支明細、114 年請購補充明細與核定經費 Excel
            - 解析購案編號中的4碼系所代碼
            - 合併三份收支資料
            - 對照核定經費
-           - 計算各系所執行率
+           - 計算各系所動支率與實支率
            - 產生Excel報表並儲存至 output/ 資料夾
            - 將結果儲存至 SQLite 資料庫
         4. 分析完成後，儀表板將顯示：
-           - 執行率摘要表
-           - 執行率比較條形圖
+           - 動支與實支摘要表
+           - 動支率比較條形圖
         
         ### 資料夾結構
         - `data/`: 放置每月的資料夾（例如 11506, 11507）

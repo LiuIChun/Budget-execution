@@ -126,7 +126,11 @@ def find_approved_budget_file(month_dir):
 def find_monthly_expense_files(month_dir):
     """Return the required supplemental file and two regular monthly files."""
     month_dir = Path(month_dir)
-    expense_files = sorted(month_dir.glob(config.EXPENSE_FILE_PATTERN))
+    expense_files = sorted(
+        path
+        for path in month_dir.glob(config.EXPENSE_FILE_PATTERN)
+        if not path.name.startswith("~$")
+    )
     supplemental_file = month_dir / config.REQUIRED_SUPPLEMENTAL_EXPENSE_FILE
 
     if not supplemental_file.exists():

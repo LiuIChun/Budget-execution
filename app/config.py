@@ -40,7 +40,12 @@ EXCLUDED_EXPENSE_DEPT_CODES = {"SD02"}
 # department and is therefore normalized to its current reporting code US19.
 EXPENSE_DEPT_CODE_ALIASES = {
     "US01": "US19",
+    "PE00": "UE15",
 }
+
+# Expense-row labels that count as actual spending. Signed amounts are kept as
+# provided, so repayments and expenditure recoveries reduce the total.
+ACTUAL_SPENDING_TYPES = {"實支", "借", "還", "支出收回"}
 
 # ===== Dashboard =====
 PAGE_TITLE = "BudgetDashboard"

@@ -20,7 +20,7 @@ def export_execution_report(summary_df, detail_df, file_name):
     output_path = config.OUTPUT_DIR / file_name
 
     with pd.ExcelWriter(output_path, engine="xlsxwriter") as writer:
-        summary_df.to_excel(writer, sheet_name="執行率總表", index=False)
+        summary_df.to_excel(writer, sheet_name="動支率總表", index=False)
         detail_df.to_excel(writer, sheet_name="明細資料", index=False)
 
     return output_path

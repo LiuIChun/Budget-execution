@@ -171,11 +171,17 @@ def parse_expense_detail(df):
     parsed["系所代碼"] = parsed["系所代碼"].replace(
         config.EXPENSE_DEPT_CODE_ALIASES
     )
-    parsed["執行金額"] = df[amount_col].apply(_to_number)
+    parsed["動支金額"] = df[amount_col].apply(_to_number)
     if purpose_col:
+        parsed["交易類型"] = df[purpose_col].apply(_to_text)
         parsed["經費項目"] = _expense_categories_from_sections(df, purpose_col, account_col)
     else:
+        parsed["交易類型"] = ""
         parsed["經費項目"] = ""
+    parsed["實支金額"] = parsed["動支金額"].where(
+        parsed["交易類型"].isin(config.ACTUAL_SPENDING_TYPES),
+        0.0,
+    )
 
     # Exclude codes that are outside the departmental budget statistics.
     parsed = parsed[
@@ -188,7 +194,7 @@ def parse_expense_detail(df):
     )
 
     parsed = parsed[parsed["系所代碼"] != ""].copy()
-    parsed = parsed[parsed["執行金額"] != 0].copy()
+    parsed = parsed[parsed["動支金額"] != 0].copy()
     return parsed
 
 def parse_approved_budget(df):
