@@ -5,7 +5,7 @@ Streamlit儀表板 for BudgetDashboard.
 
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import plotly.graph_objects as go
 from pathlib import Path
 
 # 導入自訂模組
@@ -253,41 +253,73 @@ if 'last_result' in st.session_state:
     else:
         dataframe_stretch(display_df)
     
-    # 動支率條形圖
-    st.subheader("📊 各系所動支率比較")
+    # 動支率與實支率疊合條形圖
+    st.subheader("📊 各系所動支率與實支率比較")
     plot_df = result['summary_df'][result['summary_df']['系所代碼'] != '合計'].copy()
     if not plot_df.empty:
         # 依動支率由高至低排序
         plot_df = plot_df.sort_values(by='動支率(%)', ascending=False)
 
-        fig_rate = px.bar(
-            plot_df,
-            x='動支率(%)',
-            y='系所中文名稱',  # 系所中文名稱放Y軸
-            title='各系所預算動支率',
-            color='動支率(%)',
-            color_continuous_scale='RdYlGn',
-            range_color=[0, 100],
-            orientation='h',  # 橫式顯示
-            hover_data={'系所代碼': True, '系所中文名稱': False}
-        )
+        fig_rate = go.Figure()
+        fig_rate.add_trace(go.Bar(
+            x=plot_df['動支率(%)'],
+            y=plot_df['系所中文名稱'],
+            name='動支率',
+            orientation='h',
+            marker_color='#9ecae1',
+            width=0.78,
+            customdata=plot_df[['系所代碼', '實支率(%)']].to_numpy(),
+            hovertemplate=(
+                '<b>%{y}</b><br>'
+                '系所代碼=%{customdata[0]}<br>'
+                '動支率=%{x:.2f}%<br>'
+                '實支率=%{customdata[1]:.2f}%<extra></extra>'
+            ),
+        ))
+        fig_rate.add_trace(go.Bar(
+            x=plot_df['實支率(%)'],
+            y=plot_df['系所中文名稱'],
+            name='實支率',
+            orientation='h',
+            marker_color='#2171b5',
+            width=0.42,
+            customdata=plot_df[['系所代碼', '動支率(%)']].to_numpy(),
+            hovertemplate=(
+                '<b>%{y}</b><br>'
+                '系所代碼=%{customdata[0]}<br>'
+                '實支率=%{x:.2f}%<br>'
+                '動支率=%{customdata[1]:.2f}%<extra></extra>'
+            ),
+        ))
+        max_rate = plot_df[['動支率(%)', '實支率(%)']].max().max()
         fig_rate.update_layout(
-            xaxis_title='動支率 (%)',
+            title='各系所預算動支率與實支率',
+            barmode='overlay',
+            xaxis_title='比率 (%)',
             yaxis_title='系所中文名稱',  # Y軸標題
             height=max(600, 20 * len(plot_df)),  # 根據系所數量動態調整高度，最小600px
+            legend={
+                'orientation': 'h',
+                'yanchor': 'bottom',
+                'y': 1.01,
+                'xanchor': 'right',
+                'x': 1,
+            },
             yaxis={
-                'categoryorder':'total ascending',  # 確保由高至低排列
+                'categoryorder': 'array',
+                'categoryarray': plot_df['系所中文名稱'].tolist(),
+                'autorange': 'reversed',
                 'automargin': True,  # 自動調整邊距以適應長標籤
                 'tickfont': {'size': 10}  # 調整字體大小以適應更多文字
             },
             xaxis={
-                'range': [0, 100]  # 限制X軸範圍為0到100%
+                'range': [0, max(100, max_rate * 1.05)]
             },
             margin={'l': 200, 'r': 50, 't': 50, 'b': 50}  # 增加左邊距以容納更長的系所名稱
         )
         plotly_chart_stretch(fig_rate)
     else:
-        st.info("沒有可顯示的動支率條形圖數據")
+        st.info("沒有可顯示的動支率與實支率條形圖數據")
 
 else:
     # 沒有執行結果時顯示的內容
@@ -309,7 +341,7 @@ else:
            - 將結果儲存至 SQLite 資料庫
         4. 分析完成後，儀表板將顯示：
            - 動支與實支摘要表
-           - 動支率比較條形圖
+           - 動支率與實支率疊合比較圖
         
         ### 資料夾結構
         - `data/`: 放置每月的資料夾（例如 11506, 11507）
