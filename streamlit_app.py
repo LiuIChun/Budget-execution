@@ -28,10 +28,30 @@ from app.department_mapping import set_department_mapping_month
 init_history_db()
 
 # Invalidate results retained by a browser session when reporting rules change.
-RESULT_SCHEMA_VERSION = "2026-09-23-actual-spending-columns"
+RESULT_SCHEMA_VERSION = "2026-09-24-actual-spending-session-reset"
 if st.session_state.get("result_schema_version") != RESULT_SCHEMA_VERSION:
     st.session_state.pop("last_result", None)
     st.session_state["result_schema_version"] = RESULT_SCHEMA_VERSION
+
+# A Streamlit Cloud hot reload can leave an older result in an existing
+# browser session even after the calculation columns have changed.  Discard
+# incompatible results before the rendering section indexes their columns.
+required_summary_columns = {
+    "系所代碼",
+    "動支金額",
+    "動支率(%)",
+    "實支金額",
+    "實支率(%)",
+}
+cached_result = st.session_state.get("last_result")
+cached_summary = (
+    cached_result.get("summary_df") if isinstance(cached_result, dict) else None
+)
+if (
+    cached_summary is not None
+    and not required_summary_columns.issubset(cached_summary.columns)
+):
+    st.session_state.pop("last_result", None)
 
 
 def add_department_names(summary_df, budget_file):
