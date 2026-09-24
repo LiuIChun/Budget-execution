@@ -266,7 +266,7 @@ if 'last_result' in st.session_state:
             y=plot_df['系所中文名稱'],
             name='動支率',
             orientation='h',
-            marker_color='#9ecae1',
+            marker_color='#F2C94C',
             width=0.78,
             customdata=plot_df[['系所代碼', '實支率(%)']].to_numpy(),
             hovertemplate=(
