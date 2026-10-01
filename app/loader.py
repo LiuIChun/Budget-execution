@@ -3,6 +3,8 @@ Loader module for BudgetDashboard.
 Responsible for loading raw data from Excel files.
 """
 
+import re
+
 import pandas as pd
 from pathlib import Path
 from . import config
@@ -123,8 +125,15 @@ def find_approved_budget_file(month_dir):
     )
 
 
+def _snapshot_sort_key(file_path):
+    """Sort expense snapshots by the leading ROC date and then file name."""
+    match = re.match(r"(\d+)_", file_path.name)
+    snapshot_date = int(match.group(1)) if match else -1
+    return snapshot_date, file_path.name
+
+
 def find_monthly_expense_files(month_dir):
-    """Return the required supplemental file and two regular monthly files."""
+    """Return the supplemental file and newest snapshot for each project."""
     month_dir = Path(month_dir)
     expense_files = sorted(
         path
@@ -140,14 +149,23 @@ def find_monthly_expense_files(month_dir):
         )
 
     regular_files = [path for path in expense_files if path != supplemental_file]
-    if len(regular_files) < config.REGULAR_EXPENSE_FILE_COUNT:
+    selected_regular_files = []
+    missing_projects = []
+    for project in config.PROJECT_FILES:
+        project_files = [
+            path for path in regular_files if f"_{project}" in path.name
+        ]
+        if not project_files:
+            missing_projects.append(project)
+            continue
+        selected_regular_files.append(max(project_files, key=_snapshot_sort_key))
+
+    if missing_projects:
         raise ValueError(
-            f"{month_dir} 除補充檔外，至少需要 "
-            f"{config.REGULAR_EXPENSE_FILE_COUNT} 份月份收支明細檔，"
-            f"實際找到 {len(regular_files)} 份"
+            f"{month_dir} 缺少月份收支明細：{', '.join(missing_projects)}"
         )
 
-    return [supplemental_file] + regular_files
+    return [supplemental_file] + selected_regular_files
 
 
 def is_complete_month_dir(month_dir):

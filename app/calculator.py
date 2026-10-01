@@ -24,16 +24,29 @@ def category_budget_columns():
     return [f"{category}核定" for category in config.EXPENSE_CATEGORIES]
 
 
-def category_actual_columns():
+def category_committed_columns():
     """Return category committed-amount column names in display order."""
     return [f"{category}動支金額" for category in config.EXPENSE_CATEGORIES]
 
 
+def category_actual_columns():
+    """Return category actual-spending column names in display order."""
+    return [f"{category}實支金額" for category in config.EXPENSE_CATEGORIES]
+
+
 def category_summary_columns():
-    """Return paired category budget and actual columns."""
+    """Return all category metrics in display order."""
     columns = []
     for category in config.EXPENSE_CATEGORIES:
-        columns.extend([f"{category}核定", f"{category}動支金額"])
+        columns.extend(
+            [
+                f"{category}核定",
+                f"{category}動支金額",
+                f"{category}動支率(%)",
+                f"{category}實支金額",
+                f"{category}實支率(%)",
+            ]
+        )
     return columns
 
 
@@ -97,36 +110,62 @@ def make_department_group_key(row):
 
 
 def summarize_category_execution(expense_df):
-    """Summarize committed amount by department and budget category."""
+    """Summarize committed and actual spending by department/category."""
+    amount_columns = category_committed_columns() + category_actual_columns()
     if "經費項目" not in expense_df.columns:
-        return pd.DataFrame(columns=["系所代碼"] + category_actual_columns())
+        return pd.DataFrame(columns=["系所代碼"] + amount_columns)
 
     category_expense_df = expense_df[
         expense_df["經費項目"].isin(config.EXPENSE_CATEGORIES)
     ].copy()
     if category_expense_df.empty:
-        return pd.DataFrame(columns=["系所代碼"] + category_actual_columns())
+        return pd.DataFrame(columns=["系所代碼"] + amount_columns)
 
-    category_summary = category_expense_df.pivot_table(
-        index="系所代碼",
-        columns="經費項目",
-        values="動支金額",
-        aggfunc="sum",
-        fill_value=0.0,
-    ).reset_index()
-    category_summary.columns.name = None
+    category_summary = category_expense_df[["系所代碼"]].drop_duplicates()
+    for source_col, suffix in (("動支金額", "動支金額"), ("實支金額", "實支金額")):
+        amount_summary = category_expense_df.pivot_table(
+            index="系所代碼",
+            columns="經費項目",
+            values=source_col,
+            aggfunc="sum",
+            fill_value=0.0,
+        ).reset_index()
+        amount_summary.columns.name = None
+        amount_summary = amount_summary.rename(
+            columns={
+                category: f"{category}{suffix}"
+                for category in config.EXPENSE_CATEGORIES
+                if category in amount_summary.columns
+            }
+        )
+        category_summary = pd.merge(
+            category_summary, amount_summary, on="系所代碼", how="left"
+        )
 
-    rename_columns = {
-        category: f"{category}動支金額"
-        for category in config.EXPENSE_CATEGORIES
-        if category in category_summary.columns
-    }
-    category_summary = category_summary.rename(columns=rename_columns)
-    for col in category_actual_columns():
+    for col in amount_columns:
         if col not in category_summary.columns:
             category_summary[col] = 0.0
 
-    return category_summary[["系所代碼"] + category_actual_columns()]
+    return category_summary[["系所代碼"] + amount_columns]
+
+
+def add_category_rates(summary):
+    """Calculate each category's committed and actual execution rates."""
+    for category in config.EXPENSE_CATEGORIES:
+        budget_col = f"{category}核定"
+        summary[f"{category}動支率(%)"] = summary.apply(
+            lambda row: calculate_execution_rate(
+                row[f"{category}動支金額"], row[budget_col]
+            ),
+            axis=1,
+        )
+        summary[f"{category}實支率(%)"] = summary.apply(
+            lambda row: calculate_execution_rate(
+                row[f"{category}實支金額"], row[budget_col]
+            ),
+            axis=1,
+        )
+    return summary
 
 
 def summarize_execution(expense_df, budget_df):
@@ -151,7 +190,12 @@ def summarize_execution(expense_df, budget_df):
     summary["核定經費"] = summary["核定經費"].fillna(0.0)
     summary["動支金額"] = summary["動支金額"].fillna(0.0)
     summary["實支金額"] = summary["實支金額"].fillna(0.0)
-    for col in category_budget_columns() + category_actual_columns():
+    category_amount_columns = (
+        category_budget_columns()
+        + category_committed_columns()
+        + category_actual_columns()
+    )
+    for col in category_amount_columns:
         if col not in summary.columns:
             summary[col] = 0.0
         summary[col] = summary[col].fillna(0.0)
@@ -187,7 +231,7 @@ def summarize_execution(expense_df, budget_df):
         "動支金額": "sum",
         "實支金額": "sum",
     }
-    for col in category_budget_columns() + category_actual_columns():
+    for col in category_amount_columns:
         agg_rules[col] = "sum"
     if "department_name" in summary.columns:
         agg_rules["department_name"] = first_non_empty
@@ -200,6 +244,7 @@ def summarize_execution(expense_df, budget_df):
     summary["實支率(%)"] = summary.apply(
         lambda row: calculate_execution_rate(row["實支金額"], row["核定經費"]), axis=1
     )
+    summary = add_category_rates(summary)
     summary = summary.drop(columns=["_department_group_key"])
 
     summary = summary.sort_values("系所代碼").reset_index(drop=True)
@@ -219,7 +264,7 @@ def summarize_execution(expense_df, budget_df):
         "實支金額": total_actual,
         "實支率(%)": total_actual_rate,
     }
-    for col in category_budget_columns() + category_actual_columns():
+    for col in category_amount_columns:
         total_row_data[col] = summary[col].sum()
     # Add department_name and college to total row if they exist in summary
     if "系所中文名稱" in summary.columns:
@@ -230,6 +275,7 @@ def summarize_execution(expense_df, budget_df):
         total_row_data["college"] = ""
 
     total_row = pd.DataFrame([total_row_data])
+    total_row = add_category_rates(total_row)
 
     result = pd.concat([summary, total_row], ignore_index=True)
     preferred_columns = [

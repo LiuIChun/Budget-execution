@@ -28,7 +28,7 @@ from app.department_mapping import set_department_mapping_month
 init_history_db()
 
 # Invalidate results retained by a browser session when reporting rules change.
-RESULT_SCHEMA_VERSION = "2026-09-24-actual-spending-session-reset"
+RESULT_SCHEMA_VERSION = "2026-10-01-category-execution-metrics"
 if st.session_state.get("result_schema_version") != RESULT_SCHEMA_VERSION:
     st.session_state.pop("last_result", None)
     st.session_state["result_schema_version"] = RESULT_SCHEMA_VERSION
@@ -43,6 +43,15 @@ required_summary_columns = {
     "實支金額",
     "實支率(%)",
 }
+for category in config.EXPENSE_CATEGORIES:
+    required_summary_columns.update(
+        {
+            f"{category}動支金額",
+            f"{category}動支率(%)",
+            f"{category}實支金額",
+            f"{category}實支率(%)",
+        }
+    )
 cached_result = st.session_state.get("last_result")
 cached_summary = (
     cached_result.get("summary_df") if isinstance(cached_result, dict) else None
@@ -214,7 +223,15 @@ if 'last_result' in st.session_state:
     if '系所中文名稱' in display_df.columns:
         category_cols = []
         for category in config.EXPENSE_CATEGORIES:
-            category_cols.extend([f'{category}核定', f'{category}動支金額'])
+            category_cols.extend(
+                [
+                    f'{category}核定',
+                    f'{category}動支金額',
+                    f'{category}動支率(%)',
+                    f'{category}實支金額',
+                    f'{category}實支率(%)',
+                ]
+            )
         preferred_cols = [
             '系所代碼',
             '系所中文名稱',
@@ -234,8 +251,13 @@ if 'last_result' in st.session_state:
         display_df = display_df[cols]
     
     # 格式化金額欄位為千分位
+    rate_column_names = ['動支率(%)', '實支率(%)']
+    for category in config.EXPENSE_CATEGORIES:
+        rate_column_names.extend(
+            [f'{category}動支率(%)', f'{category}實支率(%)']
+        )
     rate_columns = [
-        col for col in ['動支率(%)', '實支率(%)'] if col in display_df.columns
+        col for col in rate_column_names if col in display_df.columns
     ]
     for col in display_df.columns:
         if col in rate_columns:
