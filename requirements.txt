@@ -14,11 +14,11 @@ xlsxwriter>=3.2.0,<4.0.0
 # SQLAlchemy>=2.0.0
 
 # For web dashboard and plotting
-streamlit>=1.58.0,<2.0.0
+streamlit==1.58.0
 plotly>=6.0.0,<7.0.0
 # websockets 16.1 rejects some non-ASCII proxy headers and leaves the
-# Streamlit frontend stuck on its loading spinner. Keep the last working range.
-websockets>=12.0.0,<16.1
+# Streamlit frontend stuck on its loading spinner. Keep the tested working version.
+websockets==16.0
 
 # For any future web dashboard or reporting (if needed)
 # flask>=2.3.0
